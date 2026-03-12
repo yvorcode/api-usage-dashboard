@@ -8,7 +8,7 @@ Self-hosted, dockerized dashboard showing API usage across Anthropic and Google 
 - In-process TTL cache
 - APScheduler background refresh every 15 minutes
 - Anthropic usage endpoint integration with cost estimation
-- Google Cloud Monitoring integration for API request count / error rate
+- Mocked Google Cloud integration with realistic request/error data and no credentials required
 - Vanilla HTML/CSS/JS frontend with Chart.js
 - Graceful partial configuration: works with one service enabled
 - Manual refresh support
@@ -24,14 +24,12 @@ Self-hosted, dockerized dashboard showing API usage across Anthropic and Google 
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_APPLICATION_CREDENTIALS_JSON={"type":"service_account",...}
-GOOGLE_CLOUD_PROJECT_ID=my-gcp-project
 PORT=8080
 CACHE_TTL_SECONDS=900
 ANTHROPIC_LOOKBACK_DAYS=30
 ```
 
-`GOOGLE_APPLICATION_CREDENTIALS_JSON` is written to a temporary file on startup and exported through `GOOGLE_APPLICATION_CREDENTIALS` automatically.
+Anthropic is real and uses `ANTHROPIC_API_KEY`. Google Cloud is mocked in this branch, so no Google credentials are required.
 
 ## Run locally
 
@@ -57,7 +55,7 @@ uvicorn backend.main:app --reload --port 8080
 ## Endpoints
 
 - `GET /api/usage/anthropic`
-- `GET /api/usage/google`
+- `GET /api/usage/google` (mocked data on this branch)
 - `GET /api/status`
 - Append `?refresh=true` to either usage endpoint for a manual refresh
 
@@ -71,16 +69,12 @@ Pricing estimates are based on the models listed in the spec. Unknown models are
 
 ### Google Cloud
 
-Uses `google-cloud-monitoring` against:
+This branch uses realistic mocked Google Cloud usage data at the service layer.
 
-- `metric.type="serviceruntime.googleapis.com/api/request_count"`
-- grouped by service name and response code class
-- summed daily over the last 30 days
-
-Required IAM:
-
-- `roles/monitoring.viewer`
-- `roles/serviceusage.serviceUsageConsumer`
+- no Google API calls
+- no Google credentials required
+- same response shape and UI behavior as the real integration
+- useful for demos, UI work, and local bring-up while Anthropic remains live
 
 ## Project Structure
 
@@ -114,10 +108,11 @@ api-usage-dashboard/
 
 - No external stateful dependency: simpler deploy and PoC-friendly
 - Cache can store error payloads too, so bad credentials show clear UI state instead of crashing the app
+- Google is mocked at the service layer on this branch so the frontend and API shape stay unchanged
 - Frontend is framework-free to keep the container small and deployment trivial
 
 ## Known limitations
 
 - Anthropic response parsing is defensive but may need minor field mapping updates if the upstream schema changes
-- Google Cloud section reports request/error metrics from Monitoring, but does not yet surface quota limit values directly
+- Google Cloud data on this branch is mocked rather than fetched live
 - No auth layer is included; this is intended for trusted self-hosted environments

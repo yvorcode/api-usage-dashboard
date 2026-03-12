@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Usage Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <nav class="navbar">
+        <div>
+          <h1>API Usage Dashboard</h1>
+        </div>
+        <div class="nav-actions">
+          <span id="lastUpdated" class="muted">Last updated — loading…</span>
+          <button id="refreshButton" class="refresh-button">Refresh</button>
+        </div>
+      </nav>
+
+      <main class="content-grid">
+        <section class="card" id="anthropicCard">
+          <div class="card-header">
+            <div class="card-title-wrap">
+              <div class="logo-dot anthropic"></div>
+              <div>
+                <h2>Anthropic</h2>
+              </div>
+            </div>
+            <span class="status-badge" id="anthropicBadge">Loading</span>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-tile">
+              <span>Total Input Tokens</span>
+              <strong id="anthropicInput">—</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Total Output Tokens</span>
+              <strong id="anthropicOutput">—</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Total Cost (USD)</span>
+              <strong id="anthropicCost">—</strong>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">Token usage by model (input vs output)</div>
+            <div id="anthropicModels" class="model-bars"></div>
+          </div>
+
+          <div class="section chart-card">
+            <div class="section-label">Daily token usage (last 30 days)</div>
+            <canvas id="anthropicDailyChart" height="120"></canvas>
+          </div>
+
+          <div id="anthropicState" class="inline-state hidden"></div>
+          <div class="card-footer">Last 30 days</div>
+        </section>
+
+        <section class="card" id="googleCard">
+          <div class="card-header">
+            <div class="card-title-wrap">
+              <div class="logo-dot google"></div>
+              <div>
+                <h2>Google Cloud</h2>
+              </div>
+            </div>
+            <span class="status-badge" id="googleBadge">Loading</span>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-tile">
+              <span>Total Requests</span>
+              <strong id="googleRequests">—</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Total Errors</span>
+              <strong id="googleErrors">—</strong>
+            </div>
+            <div class="stat-tile">
+              <span>Avg Error Rate %</span>
+              <strong id="googleRate">—</strong>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-label">API services</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Service</th><th>Requests</th><th>Errors</th><th>Error Rate%</th></tr>
+                </thead>
+                <tbody id="googleServices"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="section chart-card">
+            <div class="section-label">Top 5 services by request count</div>
+            <canvas id="googleServicesChart" height="160"></canvas>
+          </div>
+
+          <div id="googleState" class="inline-state hidden"></div>
+          <div class="card-footer">Last 30 days</div>
+        </section>
+      </main>
+
+      <footer class="footer muted" id="footerCache">Cache age — Anthropic: —, Google Cloud: —</footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

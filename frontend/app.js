@@ -3,6 +3,7 @@ const fmtMoney = new Intl.NumberFormat('en-US', { style: 'currency', currency: '
 
 let anthropicChart;
 let googleChart;
+let refreshInFlight = false;
 
 function setBadge(element, status) {
   element.className = 'status-badge';
@@ -26,13 +27,94 @@ function renderInlineState(target, payload, retryHandler) {
     target.innerHTML = '';
     return;
   }
-  target.className = `inline-state ${payload.status === 'error' ? 'error' : ''}`;
+
+  target.className = `inline-state${payload.status === 'error' ? ' error' : ''}`;
   target.classList.remove('hidden');
-  const action = payload.status === 'error' ? '<button class="retry-button">Retry</button>' : '';
+  const action = payload.status === 'error' ? '<button class="retry-button" type="button">Retry</button>' : '';
   target.innerHTML = `<span>${payload.message || 'No data available'}</span>${action}`;
   if (payload.status === 'error') {
-    target.querySelector('button').addEventListener('click', retryHandler);
+    const button = target.querySelector('button');
+    if (button) {
+      button.addEventListener('click', retryHandler, { once: true });
+    }
   }
+}
+
+function createLineChart(canvas, labels, datasets) {
+  return new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      resizeDelay: 200,
+      plugins: { legend: { labels: { color: '#93a1b2' } } },
+      scales: {
+        x: { ticks: { color: '#93a1b2' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#93a1b2' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      },
+    },
+  });
+}
+
+function createBarChart(canvas, labels, dataset) {
+  return new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [dataset] },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      resizeDelay: 200,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#93a1b2' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+        y: { ticks: { color: '#93a1b2' }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+function updateAnthropicChart(payload) {
+  const labels = payload.daily.map((d) => d.date.slice(5));
+  const inputData = payload.daily.map((d) => d.input_tokens);
+  const outputData = payload.daily.map((d) => d.output_tokens);
+  const canvas = document.getElementById('anthropicDailyChart');
+
+  if (!anthropicChart) {
+    anthropicChart = createLineChart(canvas, labels, [
+      { label: 'Input', data: inputData, borderColor: '#2B9AA0', tension: 0.3, fill: false },
+      { label: 'Output', data: outputData, borderColor: '#4D6FE8', tension: 0.3, fill: false },
+    ]);
+    return;
+  }
+
+  anthropicChart.data.labels = labels;
+  anthropicChart.data.datasets[0].data = inputData;
+  anthropicChart.data.datasets[1].data = outputData;
+  anthropicChart.update('none');
+}
+
+function updateGoogleChart(payload) {
+  const labels = payload.top_services.map((s) => s.service);
+  const data = payload.top_services.map((s) => s.requests);
+  const canvas = document.getElementById('googleServicesChart');
+
+  if (!googleChart) {
+    googleChart = createBarChart(canvas, labels, {
+      label: 'Requests',
+      data,
+      backgroundColor: ['#2B9AA0', '#3A8DBF', '#4D6FE8', '#2B9AA0AA', '#4D6FE8AA'],
+      borderRadius: 10,
+    });
+    return;
+  }
+
+  googleChart.data.labels = labels;
+  googleChart.data.datasets[0].data = data;
+  googleChart.update('none');
 }
 
 function renderAnthropic(payload) {
@@ -45,7 +127,6 @@ function renderAnthropic(payload) {
   modelsEl.innerHTML = '';
   const maxTokens = Math.max(1, ...payload.models.map((m) => m.input_tokens + m.output_tokens), 1);
   payload.models.forEach((model) => {
-    const total = model.input_tokens + model.output_tokens;
     const row = document.createElement('div');
     row.className = 'model-row';
     row.innerHTML = `
@@ -59,28 +140,7 @@ function renderAnthropic(payload) {
     modelsEl.appendChild(row);
   });
 
-  const ctx = document.getElementById('anthropicDailyChart');
-  if (anthropicChart) anthropicChart.destroy();
-  anthropicChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: payload.daily.map((d) => d.date.slice(5)),
-      datasets: [
-        { label: 'Input', data: payload.daily.map((d) => d.input_tokens), borderColor: '#2B9AA0', tension: 0.3, fill: false },
-        { label: 'Output', data: payload.daily.map((d) => d.output_tokens), borderColor: '#4D6FE8', tension: 0.3, fill: false },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#93a1b2' } } },
-      scales: {
-        x: { ticks: { color: '#93a1b2' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        y: { ticks: { color: '#93a1b2' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-      },
-    },
-  });
-
+  updateAnthropicChart(payload);
   renderInlineState(document.getElementById('anthropicState'), payload, () => refreshData(true));
 }
 
@@ -98,31 +158,7 @@ function renderGoogle(payload) {
     servicesEl.appendChild(tr);
   });
 
-  const ctx = document.getElementById('googleServicesChart');
-  if (googleChart) googleChart.destroy();
-  googleChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: payload.top_services.map((s) => s.service),
-      datasets: [{
-        label: 'Requests',
-        data: payload.top_services.map((s) => s.requests),
-        backgroundColor: ['#2B9AA0', '#3A8DBF', '#4D6FE8', '#2B9AA0AA', '#4D6FE8AA'],
-        borderRadius: 10,
-      }],
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#93a1b2' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-        y: { ticks: { color: '#93a1b2' }, grid: { display: false } },
-      },
-    },
-  });
-
+  updateGoogleChart(payload);
   renderInlineState(document.getElementById('googleState'), payload, () => refreshData(true));
 }
 
@@ -137,17 +173,42 @@ function setFooter(status) {
 }
 
 async function refreshData(force = false) {
-  const query = force ? '?refresh=true' : '';
-  const [anthropic, google, status] = await Promise.all([
-    fetch(`/api/usage/anthropic${query}`).then((r) => r.json()),
-    fetch(`/api/usage/google${query}`).then((r) => r.json()),
-    fetch('/api/status').then((r) => r.json()),
-  ]);
-  renderAnthropic(anthropic);
-  renderGoogle(google);
-  setFooter(status);
-  setLastUpdated();
+  if (refreshInFlight) {
+    return;
+  }
+
+  refreshInFlight = true;
+  const refreshButton = document.getElementById('refreshButton');
+  refreshButton.disabled = true;
+
+  try {
+    const query = force ? '?refresh=true' : '';
+    const [anthropicRes, googleRes, statusRes] = await Promise.all([
+      fetch(`/api/usage/anthropic${query}`),
+      fetch(`/api/usage/google${query}`),
+      fetch('/api/status'),
+    ]);
+
+    const [anthropic, google, status] = await Promise.all([
+      anthropicRes.json(),
+      googleRes.json(),
+      statusRes.json(),
+    ]);
+
+    renderAnthropic(anthropic);
+    renderGoogle(google);
+    setFooter(status);
+    setLastUpdated();
+  } finally {
+    refreshInFlight = false;
+    refreshButton.disabled = false;
+  }
 }
+
+window.addEventListener('beforeunload', () => {
+  if (anthropicChart) anthropicChart.destroy();
+  if (googleChart) googleChart.destroy();
+});
 
 document.getElementById('refreshButton').addEventListener('click', () => refreshData(true));
 refreshData().catch((error) => {

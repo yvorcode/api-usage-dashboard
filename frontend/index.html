@@ -56,7 +56,9 @@
 
           <div class="section chart-card">
             <div class="section-label">Daily token usage (last 30 days)</div>
-            <canvas id="anthropicDailyChart" height="120"></canvas>
+            <div class="chart-wrap chart-wrap-line">
+              <canvas id="anthropicDailyChart"></canvas>
+            </div>
           </div>
 
           <div id="anthropicState" class="inline-state hidden"></div>
@@ -103,7 +105,9 @@
 
           <div class="section chart-card">
             <div class="section-label">Top 5 services by request count</div>
-            <canvas id="googleServicesChart" height="160"></canvas>
+            <div class="chart-wrap chart-wrap-bar">
+              <canvas id="googleServicesChart"></canvas>
+            </div>
           </div>
 
           <div id="googleState" class="inline-state hidden"></div>
